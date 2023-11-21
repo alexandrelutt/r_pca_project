@@ -1,5 +1,7 @@
 from source_code.models import *
 from source_code.tools import *
+from source_code.graphs import *
+from scipy.sparse import coo_matrix
 
 possible_methods = ['RPCA', 'GLPCA', 'RGLPCA']
 possible_tasks = ['Unmasking', 'Shadow removing', 'Recovering artificial dataset']
@@ -25,6 +27,19 @@ def load_pie_dataset(corrupted):
             imgs.append(flat_img)
     X = np.array(imgs).T
     return X
+
+def load_att_dataset():
+  h = 112
+  w = 92
+
+  X_load = np.zeros((400, h*w))
+  for cl in range(1, 41):
+    for i in range(1, 11):
+      img = "./att_dataset/s" + str(cl) + "/" + str(i) + ".pgm"
+      X_load[10*(cl - 1) + (i-1)] = np.array(read_pgm(open(img, 'rb')))
+  X_load = X_load / 255
+
+  return X_load.reshape(X_load.shape[0], h, w)
 
 def generate_low_rank_matrix(n, d, error_fraction, choosen_cheme):
     A = np.random.randn(d, n)/np.sqrt(n)
@@ -84,4 +99,58 @@ def evaluate(model_name, task='Unmasking', choosen_scheme='random', save=False):
         plot_random_exposures(X, L, S, model_name=model_name, corrupted=corrupted, save=save)
 
     else:
-        display_retrieval_efficiency(model_name, choosen_scheme, save=save)     
+        display_retrieval_efficiency(model_name, choosen_scheme, save=save)
+
+def evaluate_GLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals = [0, 0.3, 0.5, 1],\
+                    k = 3, occult_percent = 25):
+
+    assert dataset in ["att", "pie"]
+
+    if dataset == "att" :
+        print("Loading the AT&T dataset...")
+        idx = np.random.randint(0,40)
+        X_data = load_att_dataset()[idx*10:(idx+1)*10]
+        n_data_by_class = 10
+        h,w = X_data.shape[1], X_data.shape[2]
+
+    if dataset == "pie" :
+        print("Loading the PIE dataset...")
+        X_data = load_pie_dataset(corrupted=False).T
+        X_data = X_data.reshape(X_data.shape[0],128,128)/255
+        X_data = X_data[:10]
+        n_data_by_class = 10
+        h,w = X_data.shape[1], X_data.shape[2]
+
+    if task == "Unmasking" :
+        occult_size = int(occult_percent/100 * min(h,w))
+        X_occulted, occulsion_details = occult_dataset(X_data, occult_size, 1, n_data_by_class)
+
+        G_laplacian = Graph_Laplacian()
+        G_laplacian.load_dataset(X_occulted, 1, n_data_by_class)
+        G = G_laplacian.generate_graph(occulsion_details, occult_size)
+
+        X_PCA_by_beta = dict()
+
+        for beta in beta_vals:
+            GlPCA_model = GLPCA(beta = beta, k = k)
+            Q, U = GlPCA_model.fit(X_occulted, G)
+            X_PCA_by_beta[beta] = ((U@Q.T).T).reshape(1*n_data_by_class,h,w)
+
+        nb_rows = len(beta_vals) + 1
+
+        fig, axs = plt.subplots(nb_rows,n_data_by_class, constrained_layout=True)
+        fig.set_size_inches(2.5*n_data_by_class, 2.5*nb_rows)
+        for i in range(n_data_by_class):
+            axs[0,i].imshow(X_occulted[i], cmap = "gray")
+            for j, beta in enumerate(beta_vals):
+                axs[j+1,i].imshow(X_PCA_by_beta[beta][i], cmap = "gray")
+
+        # Titles :
+        axs[0,n_data_by_class//2].set_title("Original images", fontsize = 20)
+        for i in range(1, nb_rows):
+            axs[i,n_data_by_class//2].set_title(r"$\beta = $" + str(beta_vals[i-1]), fontsize = 20)
+
+    plt.show()
+
+    if save :
+        fig.savefig("./figures/test.png")

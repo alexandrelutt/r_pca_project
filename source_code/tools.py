@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import matplotlib.pyplot as plt
 
 import cv2
@@ -41,12 +41,48 @@ def compare(img1, img2, img3, model_name, corrupted, save, i):
     axes[2].imshow(img3, cmap='gray')
     axes[2].set_title('Sparse component')
     axes[2].axis('off')
-    
+
     if save:
         if corrupted:
             save_filename = f'figures/{model_name}_unmasking_example_{i}.png'
         else:
             save_filename = f'figures/{model_name}_shadow_removing_example_{i}.png'
-            
+
         plt.savefig(save_filename)
     plt.show()
+
+def read_pgm(pgmf):
+    # Read a pgm image file (the AT&T face database is in pgm format)
+    assert(pgmf.readline() == b'P5\n')
+    (width, height) = [int(i) for i in pgmf.readline().split()]
+    depth = int(pgmf.readline())
+    assert depth <= 255
+
+    raster = []
+    for y in range(height * width):
+        raster.append(ord(pgmf.read(1)))
+    return raster
+
+def occult_dataset(X, occult_size, n_classes, n_data_by_class):
+  # Occults 2 random data points of each class in the dataset X of size (h, w)
+  # with a square of size (occult_size, occult_size)
+  # X must be of size (n_classes*n_data_by_class, h, w)
+  X_occulted = X.copy()
+
+  def occult_image(image, occult_size):
+    x_occult, y_occult = np.random.randint(0,64 - occult_size, size = (2))
+    image[x_occult:x_occult+occult_size, y_occult:y_occult+occult_size] = 0
+    return x_occult, y_occult
+
+  occulsion_details = dict()
+
+  for k in range(n_classes):
+    i_1, i_2 = 0, 0
+    while i_1 == i_2 :
+      i_1, i_2 = np.random.randint(k*n_data_by_class, (k+1)*n_data_by_class - 1, (2))
+    x_occult, y_occult = occult_image(X_occulted[i_1], occult_size)
+    occulsion_details[i_1] = (x_occult, y_occult)
+    x_occult, y_occult = occult_image(X_occulted[i_2], occult_size)
+    occulsion_details[i_2] = (x_occult, y_occult)
+
+  return X_occulted, occulsion_details
