@@ -152,10 +152,9 @@ def evaluate_GLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals 
         for i in range(1, nb_rows):
             axs[i,n_data_by_class//2].set_title(r"$\beta = $" + str(beta_vals[i-1]), fontsize = 40)
 
-    plt.show()
-
     if save :
-        fig.savefig("./figures/test.png")
+        fig.savefig("./figures/evaluation_GLPCA.png")
+    plt.show()
 
 def evaluate_RGLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals = [0, 0.3, 0.5],\
                     k = 3, occult_percent = 25) :
@@ -204,6 +203,8 @@ def evaluate_RGLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals
         for i in range(1, nb_rows):
             axs[i,n_data_by_class//2].set_title(r"$\beta = $" + str(beta_vals[i-1]), fontsize = 40)
 
+    if save:
+        fig.savefig("./figures/evaluation_RGLPCA.png")
     plt.show()
 
 def evaluate_OURPCA(task = "Unmasking", dataset = "pie", gamma=1e-3, save = False, occult_percent = 25):
