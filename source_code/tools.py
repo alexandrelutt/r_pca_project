@@ -3,13 +3,14 @@ import matplotlib.pyplot as plt
 
 import cv2
 
-W, H = 128, 128
-occlusion_factor = 0.1
+W, H = 64, 64
+occlusion_factor = 0.25
 dx, dy = int(np.sqrt(occlusion_factor)*W), int(np.sqrt(occlusion_factor)*H)
 number_list = [f"{i:03d}" for i in range(251)]
 
 def load_img(filename):
     img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (W, H))
     return img
 
 def display(img):
@@ -63,10 +64,13 @@ def read_pgm(pgmf):
         raster.append(ord(pgmf.read(1)))
     return raster
 
-def occult_dataset(X, occult_size, n_classes, n_data_by_class):
+def occult_dataset(X, occult_size, n_occult=None):
   # Occults 2 random data points of each class in the dataset X of size (h, w)
   # with a square of size (occult_size, occult_size)
   # X must be of size (n_classes*n_data_by_class, h, w)
+  if not n_occult:
+     n_occult = X.shape[0]
+
   X_occulted = X.copy()
 
   def occult_image(image, occult_size):
@@ -76,13 +80,9 @@ def occult_dataset(X, occult_size, n_classes, n_data_by_class):
 
   occulsion_details = dict()
 
-  for k in range(n_classes):
-    i_1, i_2 = 0, 0
-    while i_1 == i_2 :
-      i_1, i_2 = np.random.randint(k*n_data_by_class, (k+1)*n_data_by_class - 1, (2))
-    x_occult, y_occult = occult_image(X_occulted[i_1], occult_size)
-    occulsion_details[i_1] = (x_occult, y_occult)
-    x_occult, y_occult = occult_image(X_occulted[i_2], occult_size)
-    occulsion_details[i_2] = (x_occult, y_occult)
+  occult_id = np.random.choice(np.arange(X.shape[0]), size = (n_occult), replace = False)
+  for i in occult_id:
+    x_occult, y_occult = occult_image(X_occulted[i], occult_size)
+    occulsion_details[i] = (x_occult, y_occult)
 
   return X_occulted, occulsion_details

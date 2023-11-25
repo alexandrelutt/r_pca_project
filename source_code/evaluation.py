@@ -7,26 +7,24 @@ possible_methods = ['RPCA', 'GLPCA', 'RGLPCA']
 possible_tasks = ['Unmasking', 'Shadow removing', 'Recovering artificial dataset']
 
 def plot_random_exposures(X, L, S, model_name, corrupted, save):
-    ids = np.random.randint(0, X.shape[1], 3)
+    ids = np.random.randint(0, X.shape[0], 3)
     for i in ids:
-        img_X = X[:, i].reshape(W, H)
-        img_L = L[:, i].reshape(W, H)
-        img_S = S[:, i].reshape(W, H)
+        img_X = X[i, :, :]
+        img_L = L[i, :, :]
+        img_S = S[i, :, :]
         compare(img_X, img_L, img_S, model_name, corrupted, save, i)
 
-def load_pie_dataset(corrupted):
+def load_pie_dataset():
     image_idx = np.random.choice(number_list)
     imgs = []
     for j in [0, 1]:
         for i in range(10):
             filename = f'small_PIE_dataset/{image_idx}/{image_idx}_01_01_051_{j}{i}_crop_128.png'
             img = load_img(filename)
-            if corrupted:
-                img = corrupt(img)
             flat_img = img.flatten()
             imgs.append(flat_img)
-    X = np.array(imgs).T
-    return X
+    X = np.array(imgs).reshape(-1, 64, 64)
+    return X/255, 64, 64
 
 def load_att_dataset():
   h = 112
@@ -36,10 +34,11 @@ def load_att_dataset():
   for cl in range(1, 41):
     for i in range(1, 11):
       img = "./att_dataset/s" + str(cl) + "/" + str(i) + ".pgm"
-      X_load[10*(cl - 1) + (i-1)] = np.array(read_pgm(open(img, 'rb')))
+      img = np.array(read_pgm(open(img, 'rb')))
+      X_load[10*(cl - 1) + (i-1)] = img
   X_load = X_load / 255
 
-  return X_load.reshape(X_load.shape[0], h, w)
+  return X_load.reshape(X_load.shape[0], h, w), h, w
 
 def generate_low_rank_matrix(n, d, error_fraction, choosen_cheme):
     A = np.random.randn(d, n)/np.sqrt(n)
@@ -90,11 +89,16 @@ def display_retrieval_efficiency(model_name, choosen_scheme, save):
 def evaluate(model_name, task='Unmasking', choosen_scheme='random', save=False):
     if task in ['Unmasking', 'Shadow removing']:
         corrupted = (task == 'Unmasking')
-        X = load_pie_dataset(corrupted=corrupted)
-
+        X, h, w = load_pie_dataset()
+        occult_size = int(25/100 * min(h, w))
+        X, _ = occult_dataset(X, occult_size) 
         print(f'Training {model_name} model for {task.lower()}...')
         model = get_model(model_name)
-        L, S = model.fit(X)
+        L, S = model.fit(X.reshape(X.shape[0], h*w))
+
+        X = X.reshape(-1, 64, 64)
+        L = L.reshape(-1, 64, 64)
+        S = S.reshape(-1, 64, 64)
 
         plot_random_exposures(X, L, S, model_name=model_name, corrupted=corrupted, save=save)
 
@@ -109,21 +113,19 @@ def evaluate_GLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals 
     if dataset == "att" :
         print("Loading the AT&T dataset...")
         idx = np.random.randint(0,40)
-        X_data = load_att_dataset()[idx*10:(idx+1)*10]
+        X_data, h, w = load_att_dataset()
+        X_data = X_data[idx*10:(idx+1)*10]
         n_data_by_class = 10
-        h,w = X_data.shape[1], X_data.shape[2]
 
     if dataset == "pie" :
         print("Loading the PIE dataset...")
-        X_data = load_pie_dataset(corrupted=False).T
-        X_data = X_data.reshape(X_data.shape[0],128,128)/255
+        X_data, h, w = load_pie_dataset()
         X_data = X_data[:10]
         n_data_by_class = 10
-        h,w = X_data.shape[1], X_data.shape[2]
 
     if task == "Unmasking" :
         occult_size = int(occult_percent/100 * min(h,w))
-        X_occulted, occulsion_details = occult_dataset(X_data, occult_size, 1, n_data_by_class)
+        X_occulted, occulsion_details = occult_dataset(X_data, occult_size, n_occult=2)
 
         G_laplacian = Graph_Laplacian()
         G_laplacian.load_dataset(X_occulted, 1, n_data_by_class)
@@ -163,21 +165,19 @@ def evaluate_RGLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals
     if dataset == "att" :
         print("Loading the AT&T dataset...")
         idx = np.random.randint(0,40)
-        X_data = load_att_dataset()[idx*10:(idx+1)*10]
+        X_data, h, w = load_att_dataset()
+        X_data = X_data[idx*10:(idx+1)*10]
         n_data_by_class = 10
-        h,w = X_data.shape[1], X_data.shape[2]
 
     if dataset == "pie" :
         print("Loading the PIE dataset...")
-        X_data = load_pie_dataset(corrupted=False).T
-        X_data = X_data.reshape(X_data.shape[0],128,128)/255
+        X_data, h, w = load_pie_dataset()
         X_data = X_data[:10]
         n_data_by_class = 10
-        h,w = X_data.shape[1], X_data.shape[2]
 
     if task == "Unmasking" :
         occult_size = int(occult_percent/100 * min(h,w))
-        X_occulted, occulsion_details = occult_dataset(X_data, occult_size, 1, n_data_by_class)
+        X_occulted, occulsion_details = occult_dataset(X_data, occult_size, n_occult=2)
 
         G_laplacian = Graph_Laplacian()
         G_laplacian.load_dataset(X_occulted, 1, n_data_by_class)
@@ -205,3 +205,32 @@ def evaluate_RGLPCA(task = "Unmasking", dataset = "att", save = False, beta_vals
             axs[i,n_data_by_class//2].set_title(r"$\beta = $" + str(beta_vals[i-1]), fontsize = 40)
 
     plt.show()
+
+def evaluate_OURPCA(task = "Unmasking", dataset = "pie", gamma=1e-3, save = False, occult_percent = 25):
+
+    assert dataset in ["att", "pie"]
+
+    if dataset == "att" :
+        print("Loading the AT&T dataset...")
+        idx = np.random.randint(0,40)
+        X_data, h, w = load_att_dataset()
+        X_data = X_data[idx*10:(idx+1)*10]
+        n_data_by_class = len(X_data)
+
+    if dataset == "pie" :
+        print("Loading the PIE dataset...")
+        X_data, h, w = load_pie_dataset()
+        n_data_by_class = len(X_data)
+
+    if task == "Unmasking" :
+        occult_size = int(occult_percent/100 * min(h,w))
+        X_occulted, occulsion_details = occult_dataset(X_data, occult_size)
+
+        G_laplacian = Graph_Laplacian()
+        G_laplacian.load_dataset(X_occulted, 1, n_data_by_class)
+        G = G_laplacian.generate_graph(occulsion_details, occult_size)
+        X_occulted = X_occulted.reshape(X_occulted.shape[0], h*w)
+        
+        OURPCA_model = OurPCA()
+        L, S = OURPCA_model.fit(X_occulted, G, gamma=gamma)
+        plot_random_exposures(X_data.reshape(-1, h, w), L.reshape(-1, h, w), S.reshape(-1, h, w), model_name='Our model', corrupted=True, save=save)

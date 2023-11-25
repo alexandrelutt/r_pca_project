@@ -149,3 +149,62 @@ class RGLPCA():
             mu = mu*self.rho
 
         return Q, U, E
+
+class OurPCA():
+    def __init__(self, max_iter=100, tol=1e-5):
+        self.max_iter = max_iter
+        self.tol = tol
+
+    def get_phi(self, G):
+        A = nx.adjacency_matrix(G).toarray()
+        D = np.diag(np.sum(A, axis=1))
+        D_inv_sqrt = np.linalg.inv(np.sqrt(D))
+        phi = D_inv_sqrt @ A @ D_inv_sqrt
+        return phi
+
+    def omega_operator(self, tau, A):
+        return np.sign(A)*np.maximum(np.abs(A)-tau, 0)
+
+    def D_operator(self, tau, A):
+        P, sigma, Qh = np.linalg.svd(A, full_matrices=False)
+        return P @ self.omega_operator(tau, np.diag(sigma)) @ Qh
+
+    def has_converged(self, P, new_P, verbose=False):
+        err = np.linalg.norm(new_P - P)/np.linalg.norm(P)
+        if verbose:
+            print(err)
+        return err < self.tol
+
+    def train(self, X, phi, gamma):
+        p, n = X.shape
+
+        lambd = 1/np.sqrt(np.max(X.shape))
+
+        L = np.random.random((p, n))
+        W = np.random.random((p, n))
+        S = np.random.random((p, n))
+
+        r_1, r_2 = 1, 1
+
+        Z_1 = X - L - S
+        Z_2 = W - L
+
+        for t in range(self.max_iter):
+            H_1 = X - S + Z_1/r_1
+            H_2 = W + Z_2/r_2
+            A = (r_1*H_1 + r_2*H_2)/(r_1 + r_2)
+            r = (r_1 + r_2)/2
+            L = self.D_operator(1/r, A)
+
+            S = self.omega_operator(lambd/r_1, X - L + Z_1/r_1)
+            W = r_2*np.linalg.inv(gamma*phi + r_2*np.identity(p)) @ (L - Z_2/r_2)
+
+            Z_1 = Z_1 + r_1*(X - L - S)
+            Z_2 = Z_2 + r_2*(W - L)
+
+        return L, S
+    
+    def fit(self, X, G, gamma):
+        phi = self.get_phi(G)
+        L, S = self.train(X, phi, gamma)
+        return L, S
