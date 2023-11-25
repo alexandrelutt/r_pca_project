@@ -91,3 +91,110 @@ def get_model(model_name):
     else:
         raise NotImplementedError
     return new_model
+
+""" def RGLPCA(X, graph, beta, k, rho = 1.01, n_iter = 100):
+
+  beta_init = beta
+  X_init = X.copy()
+
+  h, w = X[0].shape
+
+  #Init E :
+  E = np.ones(X.shape)
+  #Init C and mu :
+  C = np.zeros(X.shape)
+  mu = 1
+
+  W = nx.adjacency_matrix(graph)
+  degree_sequence = np.array([graph.degree(node) for node in graph.nodes()])
+  D = diags(degree_sequence)
+  L = D - W
+
+  xi = eigs(L, k=1, which = "LM")[0].real
+
+  for iter in range(n_iter):
+    X = X_init - E - C/mu
+    X1 = X.reshape(len(X), h*w).T
+    XTX = np.matmul(X1.T, X1)
+    lmbda = eigs(XTX, k=1, which = "LM")[0].real
+
+    alpha = beta_init/(1 - beta_init)*lmbda/xi
+    alpha = 2*alpha/mu
+    beta = alpha*xi/(lmbda + alpha*xi)[0]
+
+    # Solve E subproblem
+
+    # Solve Q, U with E fixed
+    Q, U = models.GLPCA(beta[0], k).fit(X, graph)
+
+    # Solve E with Q, U fixed
+    UQT = (U@Q.T).reshape(len(X), h, w)
+    A = X - UQT - C/mu
+    A = A.reshape(len(X), h*w).T
+    a = (A**2).sum(axis=1) # a is the vector of the norms of the rows of A
+    a = np.sqrt(a)
+    E = np.multiply(np.maximum(1 - 1/(mu*a), 0)[:, None], A).T
+    E = E.reshape(len(X), h, w)
+
+    # Parameters update
+    C = C + mu*(E - X + UQT)
+    mu = mu*rho
+
+  return Q, U, E"""
+class RGLPCA():
+    def __init__(self, beta, k, rho = 1.2, n_iter = 10):
+        # k : dimension of the projective space
+        # beta : trade-off between the two terms of the objective function (see the article of the GLPCA)
+        self.beta = beta
+        self.k = k
+        self.rho = rho
+        self.n_iter = n_iter
+
+    def fit(self, X, graph):
+        beta_init = self.beta
+        X_init = X.copy()
+
+        h, w = X[0].shape
+
+        #Init E :
+        E = np.ones(X.shape)
+        #Init C and mu :
+        C = np.zeros(X.shape)
+        mu = 1
+
+        W = nx.adjacency_matrix(graph)
+        degree_sequence = np.array([graph.degree(node) for node in graph.nodes()])
+        D = diags(degree_sequence)
+        L = D - W
+
+        xi = eigs(L, k=1, which = "LM")[0].real
+
+        for iter in range(self.n_iter):
+            X = X_init - E - C/mu
+            X1 = X.reshape(len(X), h*w).T
+            XTX = np.matmul(X1.T, X1)
+            lmbda = eigs(XTX, k=1, which = "LM")[0].real
+
+            alpha = beta_init/(1 - beta_init)*lmbda/xi
+            alpha = 2*alpha/mu
+            beta = alpha*xi/(lmbda + alpha*xi)[0]
+
+            # Solve E subproblem
+
+            # Solve Q, U with E fixed
+            Q, U = GLPCA(beta[0], self.k).fit(X, graph)
+
+            # Solve E with Q, U fixed
+            UQT = (U@Q.T).reshape(len(X), h, w)
+            A = X - UQT - C/mu
+            A = A.reshape(len(X), h*w).T
+            a = (A**2).sum(axis=1) # a is the vector of the norms of the rows of A
+            a = np.sqrt(a)
+            E = np.multiply(np.maximum(1 - 1/(mu*a), 0)[:, None], A).T
+            E = E.reshape(len(X), h, w)
+
+            # Parameters update
+            C = C + mu*(E - X + UQT)
+            mu = mu*self.rho
+
+        return Q, U, E
