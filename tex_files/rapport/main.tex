@@ -1,8 +1,12 @@
 \documentclass[sigconf]{acmart}
-\usepackage{lipsum} 
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{bm}
+\usepackage{bbm}
 
 \settopmatter{printacmref=false} % Removes citation information below abstract
 \renewcommand\footnotetextcopyrightpermission[1]{}
+\newcommand{\sign}{\text{sign}}
 \pagestyle{plain} % removes running headers
 
 %%
@@ -62,6 +66,152 @@ This project aims to provide a simple and efficient implementation of those main
 
 
 \section{Algorithms}
+
+In this section, we are going to present the algorithms we implemented and compared for the benchmark.
+
+\begin{itemize}
+  \item \textbf{Classsical PCA}: We used Scikit-Learn implementation of PCA.
+  \item \textbf{RPCA}: We implemented (see algorithm \ref{alg:rpca}) the algorithm described in~\cite{rpca_paper} using the ADMM (Alternating Direction Method of Multipliers) and following as closely as possible the pseudo-code provided in the paper.
+  \item \textbf{GLPCA}: We also implemented (see algorithm \ref{alg:glpca}) the algorithm described in~\cite{glpca_paper} using the closed-form solution proved in the original paper.
+  \item \textbf{RGLPCA}: Moreover, we also implemented (see algorithm \ref{alg:rglpca}) the robust version of the previous algorithm mentionned in~\cite{glpca_paper}.
+  \item \textbf{Proposed PCA}: Finally, we implemented (see algorithm \ref{alg:our_pca}) the algorithm described in~\cite{main_paper} which claims to be more robust than the previous ones while keeping the computational cost low.
+\end{itemize}
+ 
+In order to make notations more concise, we will define the following operators (defined on the space of square matrices):
+
+Shrinkage operator:
+\[ \mathcal{S}_{\tau}(\mathbf{Z}) = \sign{(\mathbf{Z})} \times \max{(\mathbf{0}, |\mathbf{Z}| - \tau \mathbf{I})} \]
+
+Singular value tresholding operator:
+\[ \mathcal{D}_{\tau}(\mathbf{Z}) = \mathbf{U} \mathcal{S}_{\tau}(\mathbf{\Sigma}) \mathbf{V}^T \text{ if } \mathbf{Z} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T \]
+
+\begin{algorithm}
+  \caption{RPCA algorithm}\label{alg:rpca}
+  \begin{algorithmic}
+      \Require $\mathbf{X} \in \mathbb{R}^{m \times n}$, $\varepsilon$, $n_{iter}$
+      
+      \State $\lambda \gets \frac{1}{\sqrt{\max(m, n)}}$
+      \State $\mu \gets \frac{\max(m, n)}{4 \times ||\mathbf{X}||_1}$
+      \State $\mathbf{S} \gets \mathbf{0}$
+      \State $\mathbf{Y} \gets \mathbf{0}$
+      
+      \For{$i = 1$ \textbf{to} $n_{iter}$}
+          \State $\mathbf{L} \gets \mathcal{D}_{\mu}(\mathbf{X} - \mathbf{S} + \frac{1}{\mu} \mathbf{Y})$
+          \State $\mathbf{S} \gets \mathcal{S}_{\frac{\lambda}{\mu}} (\mathbf{X} - \mathbf{L} + \frac{1}{\mu} \mathbf{Y})$ 
+          \State $\mathbf{Y} \gets \mathbf{Y} + \mu(\mathbf{X} - \mathbf{L} - \mathbf{S})$
+          \If{$||\mathbf{X} - \mathbf{L} - \mathbf{S}||_{F} \leqslant \varepsilon$}
+              \State break\
+          \EndIf
+      \EndFor
+      
+      \State \Return $\mathbf{L}$, $\mathbf{S}$
+  \end{algorithmic}
+  \end{algorithm}
+  
+  \begin{algorithm}
+  \caption{GLPCA algorithm}\label{alg:glpca}
+  \begin{algorithmic}
+      \Require $\mathbf{X} \in \mathbb{R}^{m \times n}$, $\mathcal{G}$,  $\beta$
+      
+      \State $\mathbf{W} \gets adj(\mathcal{G})$
+      \State $\mathbf{D} \gets diag(\{d_1, d_2, ..., d_{n_{\text{nodes}}}\})$
+      \State $\mathbf{L} \gets \mathbf{D} - \mathbf{W}$
+      
+      \State $\lambda_n \gets \Re(\max(eigenval(\mathbf{X}^T\mathbf{X}))$
+      \State $\xi_n \gets \Re(\max(eigenval(\mathbf{L}))$
+      
+      \State $\mathbf{G}_{\beta} \gets (1 - \beta)(\mathbf{I} - \frac{1} {\lambda_n}\mathbf{X}^T\mathbf{X}) + \frac{\beta}{\xi_n}\mathbf{L}$
+      
+      \State $\mathbf{Q} \gets \Re{(eigenvect(\mathbf{G}_{\beta}))}$
+      \State $\mathbf{U} \gets \mathbf{XQ}$
+      
+      \State \Return $\mathbf{Q}$, $\mathbf{U}$
+  \end{algorithmic}
+  \end{algorithm}
+  
+  
+  \begin{algorithm}[H]
+  \caption{RGLPCA algorithm}\label{alg:rglpca}
+  \begin{algorithmic}
+      \Require $\mathbf{X} \in \mathbb{R}^{m \times n}$, $\mathcal{G}$, $\beta$, $k$, $\rho$, $n_{iter}$
+      
+      \State $\mathbf{X}_0 \gets \mathbf{X}$
+      \State $\beta_0 \gets \beta$
+      
+      \State $\mathbf{E} \gets \bm{1}$
+      \State $\mathbf{C} \gets \bm{1}$
+      \State $\mu \gets 1$
+      
+      \State $\mathbf{W} \gets adj(\mathcal{G})$
+      \State $\mathbf{D} \gets diag(\{d_1, d_2, ..., d_{n_{\text{nodes}}}\})$
+      \State $\mathbf{L} \gets \mathbf{D} - \mathbf{W}$
+      
+      \State $\xi \gets \Re(max(eigenval(\mathbf{X}_0^T \mathbf{X}_0)))$
+      
+      \For{$i = 1$ \textbf{to} $n_{iter}$}
+          \State $\mathbf{X}_i \gets \mathbf{X} - \mathbf{E} - \frac{1}{\mu}\mathbf{C}$
+          \State $\lambda \gets \Re(\max(eigenval(\mathbf{X}_i^T \mathbf{X}_i)))$
+      
+          \State $\alpha \gets \frac{2 \beta_0 \lambda}{\mu (1 - \beta_0)\xi}$
+          \State $\beta \gets \frac{\alpha \xi}{\lambda + \alpha \xi}$
+      
+          \State $\mathbf{Q}, \mathbf{U} \gets GLPCA(\mathbf{X}, \mathcal{G}, \beta, k)$
+      
+          \State $\mathbf{A} \gets \mathbf{X}_k - \mathbf{UQ}^T - \frac{1}{\mu} \mathbf{C}$
+          \State $\mathbf{a} \gets (||\mathbf{A}_1||_2, ||\mathbf{A}_2||_2, ..., ||\mathbf{A}_m||_2)$
+          \State $\mathbf{E} \gets \mathcal{S}_{\frac{1}{\mu}}(\mathbf{a})$
+          \State $\mathbf{C} \gets \mathbf{C} + \mu(\mathbf{E} - \mathbf{X} - \mathbf{UQ}^T)$
+          \State $\mu \gets \rho \mu$
+          
+      \EndFor
+      
+      \State \Return $\mathbf{Q}$, $\mathbf{U}$, $\mathbf{E}$
+  \end{algorithmic}
+  \end{algorithm}
+  
+  
+  \begin{algorithm}[H]
+  \caption{Proposed PCA algorithm}\label{alg:our_pca}
+  \begin{algorithmic}
+      \Require $\mathbf{X} \in \mathbb{R}^{p \times n}$, $\mathcal{G}$, $n_{iter}$, $\gamma$, $\varepsilon$
+      
+      \State $\mathbf{A} \gets adj(\mathcal{G})$
+      \State $\mathbf{D} \gets diag(\{d_1, d_2, ..., d_{n_{\text{nodes}}}\})$
+      
+      \State $\bm{\phi} \gets D^{-\frac{1}{2}} A D^{-\frac{1}{2}} $
+      
+      \State $\lambda \gets \frac{1}{\sqrt{\max(p, n)}}$
+      \State $\mathbf{L} \gets random(p, n)$
+      \State $\mathbf{W} \gets random(p, n)$
+      \State $\mathbf{S} \gets random(p, n)$
+      
+      \State $r_1 \gets 1$
+      \State $r_2 \gets 1$
+      
+      \State $\mathbf{Z}_1 \gets \mathbf{X} - \mathbf{L} - \mathbf{S}$
+      \State $\mathbf{Z}_2 \gets \mathbf{W} - \mathbf{L}$
+      
+      \For{$i = 1$ \textbf{to} $n_{iter}$}
+          \State $\mathbf{H}_1 \gets \mathbf{X} - \mathbf{S} + \frac{1}{r_1}\mathbf{Z}_1$
+          \State $\mathbf{H}_2 \gets \mathbf{W} + \frac{1}{r_2}\mathbf{Z}_2$
+          \State $\mathbf{H} \gets \frac{1}{r_1 + r_2} (r_1 \mathbf{H}_1 + r_2 \mathbf{H}_2)$
+          \State $\mathbf{L} \gets \mathcal{D}_{\frac{2}{r_1 + r_2}}(\mathbf{H})$
+      
+          \State $\mathbf{S} \gets \mathcal{S}_{\frac{\lambda}{r_1}}(\mathbf{X} - \mathbf{L} + \frac{1}{r_1}\mathbf{Z}_1)$
+          \State $\mathbf{W} \gets r_2 (\gamma \bm{\phi} + r_2 \mathbf{I})^{-1}(L - \frac{1}{r_2}Z_2)$
+          
+          \State $\mathbf{Z}_1 \gets \mathbf{Z}_1 + r_1(\mathbf{X} - \mathbf{L} - \mathbf{S})$
+          \State $\mathbf{Z}_2 \gets \mathbf{Z}_2 + r_2(\mathbf{W} - \mathbf{L})$
+      
+          \If{$||\mathbf{X} - \mathbf{L} - \mathbf{S}||_{F} \leqslant \varepsilon$}
+              \State break\
+          \EndIf
+      
+      \EndFor
+      
+      \State \Return $\mathbf{L}$, $\mathbf{S}$
+  \end{algorithmic}
+  \end{algorithm}
 
 
 
