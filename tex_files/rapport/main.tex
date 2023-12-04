@@ -50,40 +50,102 @@
 
 \section{Abstract}
 
-Principal Component Analysis (PCA) is a very popular method for dimensionality reduction, and is used by thousands accross the world to provide 2D or 3D visualisations and insights about high-dimension data.
+Principal Component Analysis (PCA) is a very popular method for dimensionality reduction, and is used by thousands accross the world to provide 2D or 3D visualisations and insights about high-dimension data. It is used in a variety of different fields, such as image processing, finance, biology, and computer vision, to name only a few of them.
+In this work, we present a benchmark of different variants of PCA, which aim to tackle some of the issues of the original PCA algorithm that prevent it from being used in many real-life situations. 
 
-However, its main drawback is that it is very sensitive to outliers, and thus cannot be used in many real-world applications.
-This issue has been solved by the introduction of a robust variants of PCA, RPCA~\cite{rpca_paper}. However, this algorithm is very slow on large datasets, which makes it impractical for many applications. 
+\section{Introduction}
+
+As mentionned in the abstract, PCA is a useful tool for dimensionnality reduction. More specifically, given a matrix $X \in \mathbb{R}^{n \times p}$, it solves the following optimization problem:
+
+\begin{equation*}
+  \begin{aligned}
+  & \underset{L \in \mathbb{R}^{n \times p}}{\min}
+  & & ||X - L||_F^2 \\
+  & \text{subject to}
+  & & rank(L) \leqslant k \\
+  \end{aligned}
+\end{equation*}
+
+where $k$ is an integer parameter of the algorithm. It can be shown that this problem actually has a closed-form solution given by the first $k$ principal components of $X$.
+
+However, the main drawback of PCA is that it is very sensitive to noise, corrupted data and outliers and thus cannot be used in many real-world applications.
+The sensitivity to noise has been partially solved by the introduction of a robust variant of PCA, RPCA~\cite{rpca_paper}. However, this algorithm is very slow on large datasets, which makes it impractical for many applications. 
 This motivated the introduction of another PCA variant called GLPCA~\cite{glpca_paper} which uses graph Laplacian regularization to improve the robustness of the algorithm while keeping the computational cost low.
 Finally, a third variant of PCA similar to the previous ones has been proposed by the authors of~\cite{main_paper} to improve the robustness of the algorithm while keeping the computational cost low.
 
 This project aims to provide a simple and efficient implementation of those main variants of the PCA algorithm, as well as a benchmark of those methods on different tasks (clustering and low-rank recovery for corrupted data on real-life and artificial datsets).
-
-
-\section{Introduction}
-
-
-
 
 \section{Algorithms}
 
 In this section, we are going to present the algorithms we implemented and compared for the benchmark.
 
 \begin{itemize}
-  \item \textbf{Classsical PCA}: We used Scikit-Learn implementation of PCA.
-  \item \textbf{RPCA}: We implemented (see algorithm \ref{alg:rpca}) the algorithm described in~\cite{rpca_paper} using the ADMM (Alternating Direction Method of Multipliers) and following as closely as possible the pseudo-code provided in the paper.
-  \item \textbf{GLPCA}: We also implemented (see algorithm \ref{alg:glpca}) the algorithm described in~\cite{glpca_paper} using the closed-form solution proved in the original paper.
-  \item \textbf{RGLPCA}: Moreover, we also implemented (see algorithm \ref{alg:rglpca}) the robust version of the previous algorithm mentionned in~\cite{glpca_paper}.
-  \item \textbf{Proposed PCA}: Finally, we implemented (see algorithm \ref{alg:our_pca}) the algorithm described in~\cite{main_paper} which claims to be more robust than the previous ones while keeping the computational cost low.
+  \item \textbf{Classsical PCA}: We used Scikit-Learn implementation of PCA, which computes the SVD of $X$ and returns the first $k$ principal components.
+  \item \textbf{RPCA}: We implemented (see algorithm~\ref{alg:rpca}) the algorithm described in~\cite{rpca_paper} using the ADMM (Alternating Direction Method of Multipliers) and following as closely as possible the pseudo-code provided in the paper.
+  This algorithm solves the following optimization problem:
+
+  \begin{equation*}
+    \begin{aligned}
+    & \underset{L, S \in \mathbb{R}^{n \times p}}{\min}
+    & & ||L||_* + \lambda ||S||_1 \\
+    & \text{subject to}
+    & & L + S = X \\
+    \end{aligned}
+  \end{equation*}
+
+  where $||.||_*$ is the nuclear norm and $||.||_1$ is the $\ell_1$ norm. This problem is solved iteratively by alterining phases of optimization over $L$ and over $S$.
+  
+  \item \textbf{GLPCA}: We also implemented (see algorithm~\ref{alg:glpca}) the algorithm described in~\cite{glpca_paper} using the closed-form solution proved in the original paper.
+  
+  This algorithm solves the following optimization problem:
+
+  \begin{equation*}
+    \begin{aligned}
+    & \underset{Q, U \in \mathbb{R}^{n \times k}}{\min}
+    & & ||X - UQ^T||_F^2 + \alpha Tr(Q^T (D-W) Q) \\
+    & \text{subject to}
+    & & Q^TQ = I \\
+    \end{aligned}
+  \end{equation*}
+
+  Where $W$ is the adjacency matrix of the graph $\mathcal{G}$, $D$ is the degree matrix of $\mathcal{G}$, and $\alpha$ is a hyperparameter of the algorithm. In pratice, we followed the pseudo-code provided in paper~\cite{glpca_paper} and used the closed-form solution obtained when reformulating the problem using $\alpha = \dfrac{\beta}{1 - \beta} \dfrac{\lambda_n}{\xi_n}$ (where $\lambda_n$ and $\xi_n$ are respectively the maximum eigenvalues of $X^TX$ and $D-W$) and differentiating the objective function with respect to $Q$ and $U$.
+
+  \item \textbf{RGLPCA}: We also implemented (see algorithm~\ref{alg:rglpca}) the robust version of the previous algorithm also mentionned in~\cite{glpca_paper}. This algorithm solves the following optimization problem:
+  
+  \begin{equation*}
+    \begin{aligned}
+    & \underset{Q, U \in \mathbb{R}^{n \times k}}{\min}
+    & & ||X - UQ^T||_{2, 1} + \alpha Tr(Q^T (D-W) Q) \\
+    & \text{subject to}
+    & & Q^TQ = I \\
+    \end{aligned}
+  \end{equation*}
+
+  where $||.||_{2, 1}$ is the $\ell_{2, 1}$ norm defined by $||A||_{2, 1} = \sum\limits_{j=1}^n \sqrt{\sum \limits_{i=1}^p A_{ij}^2}$. This problem is solved using the ADMM algorithm, following the pseudo-code provided in the paper.
+  
+  \item \textbf{Proposed PCA}: Finally, we implemented (see algorithm~\ref{alg:our_pca}) the algorithm described in~\cite{main_paper} which claims to be more robust than the previous ones while keeping the computational cost low. This algorithm solves the following optimization problem:
+  
+  \begin{equation*}
+    \begin{aligned}
+    & \underset{L, S \in \mathbb{R}^{n \times p}}{\min}
+    & & ||L||_* + \lambda ||S||_1 + \gamma Tr(L \phi L^T) \\
+    & \text{subject to}
+    & & X = L + S \\
+    \end{aligned}
+  \end{equation*}
+
+  Where $\phi$ is the graph Laplacian of $\mathcal{G}$ and $\gamma$ is a hyperparameter of the algorithm. As the previous methods, it uses the ADMM algorithm to solve this problem by alternating phases of optimization over $L$ and over $S$.
+
 \end{itemize}
  
-In order to make notations more concise, we will define the following operators (defined on the space of square matrices):
+In order to make notations more concise, we will define the following shrinkage and singular value tresholding operators (defined on the space of square matrices):
 
-Shrinkage operator:
-\[ \mathcal{S}_{\tau}(\mathbf{Z}) = \sign{(\mathbf{Z})} \times \max{(\mathbf{0}, |\mathbf{Z}| - \tau \mathbf{I})} \]
-
-Singular value tresholding operator:
-\[ \mathcal{D}_{\tau}(\mathbf{Z}) = \mathbf{U} \mathcal{S}_{\tau}(\mathbf{\Sigma}) \mathbf{V}^T \text{ if } \mathbf{Z} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T \]
+\begin{equation*}
+  \begin{cases}
+    \mathcal{S}_{\tau}(\mathbf{Z}) = \sign{(\mathbf{Z})} \times \max{(\mathbf{0}, |\mathbf{Z}| - \tau \mathbf{I})} \\
+      \mathcal{D}_{\tau}(\mathbf{Z}) = \mathbf{U} \mathcal{S}_{\tau}(\mathbf{\Sigma}) \mathbf{V}^T \text{ with } \mathbf{Z} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T
+  \end{cases}
+\end{equation*}
 
 \begin{algorithm}
   \caption{RPCA algorithm}\label{alg:rpca}
