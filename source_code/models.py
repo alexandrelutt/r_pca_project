@@ -203,7 +203,7 @@ class OurPCA():
             Z_2 = Z_2 + r_2*(W - L)
 
         return L, S
-    
+
     def fit(self, X, G, gamma):
         phi = self.get_phi(G)
         L, S = self.train(X, phi, gamma)

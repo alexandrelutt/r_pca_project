@@ -6,8 +6,13 @@ import cv2
 W, H = 64, 64
 occlusion_factor = 0.25
 dx, dy = int(np.sqrt(occlusion_factor)*W), int(np.sqrt(occlusion_factor)*H)
-number_list = [f"{i:03d}" for i in range(251)]
 
+number_list = list()
+for i in range(1, 251):
+    if i not in [213] :
+        number_list.append(f"{i:03d}")
+
+n_classes = {'att': 40, 'pie' : 249}
 def load_img(filename):
     img = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
     img = cv2.resize(img, (W, H))
@@ -86,3 +91,4 @@ def occult_dataset(X, occult_size, n_occult=None):
     occulsion_details[i] = (x_occult, y_occult)
 
   return X_occulted, occulsion_details
+
