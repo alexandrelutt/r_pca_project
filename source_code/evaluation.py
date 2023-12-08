@@ -143,6 +143,12 @@ def occult_and_generate_graph(X_data, dataset, occult_percent, n_occult, n_data_
 
     return X_occulted, G
 
+def generate_classification_graph(X_data, n_data_by_class = 10):
+    G_laplacian = Graph_Laplacian("classification")
+    G_laplacian.load_dataset(X_data, 1, n_data_by_class)
+    G = G_laplacian.generate_graph()
+    return G
+
 def evaluate_GLPCA(X_occulted, G, task = "Unmasking", beta_vals = [0, 0.3, 0.5, 1],\
                     k = 3, n_data_by_class = 10, plot = True, save = False):
     h, w = X_occulted.shape[1], X_occulted.shape[2]

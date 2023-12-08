@@ -43,7 +43,6 @@ class Graph_Laplacian():
       G = nx.Graph()
       G.add_nodes_from([i for i in range(self.n_classes * self.n_data_by_class)])
 
-      s = 0
       for k in range(self.n_classes):
         euclidean_distance_matrix = np.zeros((self.n_data_by_class,self.n_data_by_class))
         for i in range(k*self.n_data_by_class, (k+1)*self.n_data_by_class):
@@ -55,6 +54,23 @@ class Graph_Laplacian():
             if i < j :
               weight = np.exp(-(euclidean_distance_matrix[i%self.n_data_by_class,j%self.n_data_by_class] - w_min)**2/(sigma**2))
               G.add_edge(i, j, weight = weight)
+
+    elif self.task == "classification" :
+      G = nx.Graph()
+      G.add_nodes_from([i for i in range(self.n_classes * self.n_data_by_class)])
+
+      for k in range(self.n_classes):
+        euclidean_distance_matrix = np.zeros((self.n_data_by_class,self.n_data_by_class))
+        for i in range(k*self.n_data_by_class, (k+1)*self.n_data_by_class):
+          for j in range(k*self.n_data_by_class, (k+1)*self.n_data_by_class):
+            euclidean_distance_matrix[i%self.n_data_by_class,j%self.n_data_by_class] = self.compute_weigh_occulsion(self.X, i, j)
+        w_min = min(euclidean_distance_matrix[i,j] for i in range(self.n_data_by_class) for j in range(i+1, self.n_data_by_class))
+        for i in range(k*self.n_data_by_class, (k+1)*self.n_data_by_class):
+          for j in range(k*self.n_data_by_class, (k+1)*self.n_data_by_class):
+            if i < j :
+              weight = np.exp(-(euclidean_distance_matrix[i%self.n_data_by_class,j%self.n_data_by_class] - w_min)**2/(sigma**2))
+              G.add_edge(i, j, weight = weight)
+
     else :
       return NotImplementedError
 
