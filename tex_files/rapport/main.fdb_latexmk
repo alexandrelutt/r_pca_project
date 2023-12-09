@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex main"] 1701797886 "main.aux" "main.bbl" "main" 1701800213 0
+["bibtex main"] 1702113984 "main.aux" "main.bbl" "main" 1702114018 0
   "./bib.bib" 1701793427 1172 a09201d1cc53a9d2813591445738e4a6 ""
   "/usr/local/texlive/2023/texmf-dist/bibtex/bst/acmart/ACM-Reference-Format.bst" 1653856601 90333 ccee583820c555b8fd3c6d1b9f362b14 ""
-  "main.aux" 1701800212 4449 4057763f8dfea591889e96f7eb24f773 "pdflatex"
+  "main.aux" 1702114017 4722 0c5cc30b897d228618bf255f38952ae4 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1701800211 "/Users/alexandrelutt/Desktop/Travail/ENPC/3A/MVA/Geometric Data Analysis/r_pca_project/tex_files/rapport/main.tex" "main.pdf" "main" 1701800213 0
-  "/Users/alexandrelutt/Desktop/Travail/ENPC/3A/MVA/Geometric Data Analysis/r_pca_project/tex_files/rapport/main.tex" 1701800211 16328 1d810d62c4a5ee17b0524d7377a0e555 ""
+["pdflatex"] 1702114016 "/Users/alexandrelutt/Desktop/Travail/ENPC/3A/MVA/Geometric Data Analysis/r_pca_project/tex_files/rapport/main.tex" "main.pdf" "main" 1702114018 0
+  "/Users/alexandrelutt/Desktop/Travail/ENPC/3A/MVA/Geometric Data Analysis/r_pca_project/tex_files/rapport/main.tex" 1702114016 19479 1cb16e28135a30622f64169979711923 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_25tcsq.enc" 1490131464 2921 8ca0eb0831f9bc5da080d3697cfe67bf ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_76gpa5.enc" 1490131464 2933 9ad527ce78d7c5fa0a642dead095f172 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_fygcup.enc" 1490131464 2824 67c67e7402c76b84866a6f91f9790b12 ""
@@ -223,10 +223,10 @@
   "/usr/local/texlive/2023/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1698146975 4623355 b8cad38412faebe1ce5b780a45db67bd ""
   "/usr/local/texlive/2023/texmf-var/web2c/pdftex/pdflatex.fmt" 1698146920 7883455 a9b1852fc68711b63feaf31fb0680e4f ""
   "/usr/local/texlive/2023/texmf.cnf" 1678822455 577 1b2b1af17af2508fb20dd85783af4050 ""
-  "main.aux" 1701800212 4449 4057763f8dfea591889e96f7eb24f773 "pdflatex"
-  "main.bbl" 1701797886 3413 b7e303103d629cd164e8b5ee6ccee414 "bibtex main"
-  "main.out" 1701800212 2041 7528a387554886165f6659663784aabb "pdflatex"
-  "main.tex" 1701800211 16328 1d810d62c4a5ee17b0524d7377a0e555 ""
+  "main.aux" 1702114017 4722 0c5cc30b897d228618bf255f38952ae4 "pdflatex"
+  "main.bbl" 1702113984 3413 b7e303103d629cd164e8b5ee6ccee414 "bibtex main"
+  "main.out" 1702114017 2487 d184c7a8825afe83de76e9288c6801d1 "pdflatex"
+  "main.tex" 1702114016 19479 1cb16e28135a30622f64169979711923 ""
   "sampleteaser.pdf" 1701613838 27077 45c83b41ae381953267b49844a7a90af ""
   (generated)
   "main.aux"

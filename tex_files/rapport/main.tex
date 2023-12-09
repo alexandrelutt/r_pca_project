@@ -99,27 +99,39 @@ We implemented (see algorithm~\ref{alg:rpca}) the algorithm described in~\cite{r
 
   where $||.||_*$ is the nuclear norm and $||.||_1$ is the $\ell_1$ norm. This problem is solved iteratively by alterning between phases of optimization over $L$ and over $S$.
   
-\subsection{GLPCA}
+\subsection{Graph-Laplacian PCA (GLPCA)}
 
-We also implemented (see algorithm~\ref{alg:glpca}) the algorithm described in~\cite{glpca_paper} using the closed-form solution proved in the original paper.
-  
-  This algorithm solves the following optimization problem:
+% (see algorithm~\ref{alg:glpca})
+We also implement the Graph-Laplacian PCA (GLPCA) method proposed by Jiang et. al. in~\cite{glpca_paper}. In this method, the authors propose to use additional information about the data in the form of a graph $\mathcal{G}$ to perform the data dimensionality reduction.
 
-  \begin{equation*}
-    \begin{aligned}
-    & \underset{Q, U}{\min}
-    & & ||X - UQ^T||_F^2 + \alpha Tr(Q^T (D-W) Q) \\
-    & \text{subject to}
-    & & Q^TQ = I \\
-    \end{aligned}
-  \end{equation*}
+The idea is to incorporate the graph Laplacian of $\mathcal{G}$ in the objective function of the PCA algorithm in the form of a regularization term. Here, the Laplacian embedding \cite{Laplacian_embedding} is used as the regularization term.
 
-  Where $W$ is the adjacency matrix of the graph $\mathcal{G}$, $D$ is the degree matrix of $\mathcal{G}$, and $\alpha$ is a hyperparameter of the algorithm. In pratice, we followed the pseudo-code provided in paper~\cite{glpca_paper} and used the closed-form solution obtained when reformulating the problem using $\alpha = \dfrac{\beta}{1 - \beta} \dfrac{\lambda_n}{\xi_n}$ (where $\lambda_n$ and $\xi_n$ are respectively the maximum eigenvalues of $X^TX$ and $D-W$) and differentiating the objective function with respect to $Q$ and $U$.
+The model obtained is,
+\begin{align*}
+    & \min_{Q, U} ||X - UQ^T||_F^2 + \alpha Tr(Q^T (D-W) Q) \\
+    & \text{subject to } Q^TQ = I
+\end{align*}
 
-\subsection{RGLPCA}
+where $D$ is the degree matrix of $\mathcal{G}$ and $W$ is the adjacency matrix of $\mathcal{G}$.
 
-We also implemented (see algorithm~\ref{alg:rglpca}) the robust version of the previous algorithm also mentionned in~\cite{glpca_paper}. This algorithm solves the following optimization problem:
-  
+A closed form solution is obtained by differentiating the objective function with respect to $U$ and $Q$ and setting the result to zero. The authors easily show that this leads to setting $Q$ equal to the $k$ smallest eigenvectors of the matrix,
+$$ G_\alpha = -X^TX + \alpha L,$$
+where $L = D-W$ and setting $U = XQ$.
+To make the terms in $G_\alpha$ comparable, the authors propose
+a simple reformulation of the problem by introducing a new parameter $\beta$ such that $\alpha = \frac{\beta}{1-\beta}\frac{\lambda_n}{\xi_n}$, where $\lambda_n$ and $\xi_n$ are the smallest eigenvalues of $X^TX$ and $L = D-W$ respectively. The new problem can be written as,
+\begin{align*}
+    & \min_{Q, U} TrQ^T\left[(1-\beta)(I - \frac{X^TX}{\lambda_n}) + \beta \frac{L}{\xi_n}\right]Q \\
+    & \text{subject to } Q^TQ = I
+\end{align*}
+A closed form solution for $Q$ is obtained by solving for the $k$ smallest eigenvectors of the matrix
+$$ G_\beta = (1-\beta)(I - \frac{X^TX}{\lambda_n}) + \beta \frac{L}{\xi_n}$$
+and setting $U = XQ$.
+\subsection{Robust GLPCA (RGLPCA)}
+
+A robust version of the GLPCA (RGLPCA) is proposed in~\cite{rglpca_paper}. The authors propose to use almost the same objective function as GLPCA, but with a different norm for the PCA term. This new norm is the $L_{2, 1}$ norm first introduced by Ding et. al. in~\cite{L21_norm} and defined by $$ ||A||_{2, 1} = \displaystyle \sum\limits_{j=1}^n \sqrt{\sum \limits_{i=1}^p A_{ij}^2}.$$
+Ding et. al. show that this norm is more robust to outliers than the Frobenius norm since it is less sensitive to data points (rows of $X$) with unrealistic values (use of the $L^1$ norm between data points). They also show that this norm has better theoretical properties than the $L^1$ norm. For instance, it converses the rotational invariance property of the Frobenius norm (that is lost with the $L^1$ norm) and it directly relates to the covariance matrix of the data.
+
+The RGLPCA model is obtained by solving the following optimization problem,
   \begin{equation*}
     \begin{aligned}
     & \underset{Q, U}{\min}
@@ -128,8 +140,39 @@ We also implemented (see algorithm~\ref{alg:rglpca}) the robust version of the p
     & & Q^TQ = I \\
     \end{aligned}
   \end{equation*}
-
-  where $||.||_{2, 1}$ is the $\ell_{2, 1}$ norm defined by $||A||_{2, 1} = \displaystyle \sum\limits_{j=1}^n \sqrt{\sum \limits_{i=1}^p A_{ij}^2}$. This problem is solved using the ADMM~\cite{admm_paper} algorithm, following the pseudo-code provided in the paper.
+The Augmented Lagrangian Multiplier (ALM) method is used to solve this problem. The ALM is an iterative method that solves a sequence of minimization problems that depend on a Lagrange multiplier $C$ and a penalty parameter $\mu$, which are updated at each iteration.
+In the case of RGLPCA, the authors introduce $E = X - UQ^T$ and show that a sub-problem of the ALM method can be written as,
+  \begin{equation*}
+    \begin{aligned}
+    & \underset{Q, U, E}{\min}
+    & & ||E||_{2, 1} + \alpha Tr(Q^TLQ) + \frac{\mu}{2}||E - X + UQ^T + \frac{C}{\mu}||_F^2 \\
+    & \text{subject to}
+    & & Q^TQ = I \\
+    \end{aligned}
+\end{equation*}
+To solve a sub-problem, the authors propose to solve iteratively, for a fixed $E$,
+\begin{equation*}
+    \begin{aligned}
+    & \underset{Q, U}{\min}
+    & & \frac{\mu}{2}||E - X + UQ^T + \frac{C}{\mu}||_F^2 + \alpha Tr(Q^TLQ) \\
+    & \text{subject to}
+    & & Q^TQ = I \\
+    \end{aligned}
+\end{equation*}
+using the GLPCA method with $\tilde{X} = E - X + \frac{C}{\mu}$ and $\tilde{\alpha} = \frac{2\alpha}{\mu}$ (from which $\tilde{\beta}$ is then computed). Then, fixing $Q$ and $U$, we solve for $E$,
+\begin{equation*}
+    \begin{aligned}
+    & \underset{E}{\min}
+    & & ||E||_{2, 1} + \frac{\mu}{2}||E - X + UQ^T + \frac{C}{\mu}||_F^2 \\
+    \end{aligned}
+\end{equation*}
+which solution is known to be,
+$$ e_i = \max(1 - \frac{1}{\mu||a_i||}, 0)a_i$$
+where $a_i$ is the $i$-th row of $X - UQ^T - \frac{C}{\mu}$.
+No justification of the validity of this decomposition method to solve the sub-problem is given in the paper.
+Finally, at the end of each iteration, the Lagrange multiplier $C$ and the penalty parameter $\mu$ are updated as follows,
+$$ C = C + \mu(E - X + UQ^T)$$
+$$ \mu = \rho \mu.$$
   
 \subsection{RPCA on graphs}
 
@@ -146,7 +189,43 @@ Finally, we implemented (see algorithm~\ref{alg:our_pca}) the RPCA on graphs alg
 
   Where $\phi$ is the graph Laplacian of $\mathcal{G}$ and $\gamma$ is a hyperparameter of the algorithm. As the previous methods, it uses the ADMM~\cite{admm_paper} algorithm to solve this problem by alterning phases of optimization over $L$ and over $S$.
 
-\section{Pseudo-code}
+
+\section{Experimental setup}
+
+For the benchmark, we compared these algorithms on two different tasks: low-rank recovery for corrupted data and clustering. For the low-rank recovery task, we used the CMU PIE dataset which is a dataset of images of faces with different angles and lighting. For the clustering task, we used the AT\&T dataset which is another dataset of images of faces.
+
+\subsection{Low-rank recovery for corrupted data}
+
+For this task, we used the PIE dataset, and more specifically 20 64$\times$64 images of the same 40 people under different lighting with a constant camera angle, and corrupted them by adding a single random black block of 25\% of the image dimensions to each sample. We then used the different algorithms to recover the concatenation of the original images from the concatenation of the corrupted ones. The main hypothesis here is that this long concatenation matrix will be well approximated by a low-rank matrix, since the difference in lighting and corruption is supposed to be sparse. We evaluated the different methods mostly by visual inspection of the results, but also by computing the mean squared error between the original and recovered images.
+
+\subsection{Clustering}
+
+For this task, we used the AT\&T dataset, and more specifically 400 112$\times$92 images aggregated in 40 equally sampled classes (each class corresponding to one individual). We then compute the low-rank approximation of the concatenation of the images, and used the resulting matrix as a feature matrix for clustering. We then evaluated the different methods by computing the labels produced by the KMeans algorithm trained on this feature matrix, and comparing them with the original labels of the dataset. We compared the different methods by computing the $ $ error between, as well as the Adjusted Rand Index (ARI) as well as the Normalized Mutual Information (NMI). These metrics can be easily computed given the confusion matrix and the raw labels:
+
+\[ ARI = 2 \frac{TP \times TN - FN \times FP}{(TP + FN)\times(FN + TN) + (TP + FP)\times(FP + FN)} \]
+
+\[ NMI = \frac{I(y_{\text{true}}, y_{\text{pred}})}{\sqrt{H(y_{\text{true}}) \times H(y_{\text{pred}})}} \]
+
+where $TP$ is the number of true positives, $TN$ is the number of true negatives, $FP$ is the number of false positives, $FN$ is the number of false negatives, $I(y_{\text{true}}, y_{\text{pred}})$ is the mutual information between $y_{\text{true}}$ and $y_{\text{pred}}$, and $H(y)$ is the entropy of $y$.
+
+\section{Results}
+
+
+
+
+\section{Limitations}
+
+
+
+
+\section{Conclusion}
+
+
+
+
+\section{Appendix}
+
+\subsection{Pseudo-code}
 
 In order to make notations more concise, we will define the following shrinkage and singular value tresholding operators (defined on the space of square matrices):
 
@@ -285,37 +364,7 @@ In order to make notations more concise, we will define the following shrinkage 
   \end{algorithmic}
   \end{algorithm}
 
-
-\section{Experimental setup}
-
-For the benchmark, we compared these algorithms on two different tasks: low-rank recovery for corrupted data and clustering. For the low-rank recovery task, we used the CMU PIE dataset which is a dataset of images of faces with different angles and lighting. For the clustering task, we used the AT\&T dataset which is another dataset of images of faces.
-
-\subsection{Low-rank recovery for corrupted data}
-
-For this task, we used the PIE dataset, and more specifically 20 64$\times$64 images of the same 40 people under different lighting with a constant camera angle, and corrupted them by adding a single random black block of 25\% of the image dimensions to each sample. We then used the different algorithms to recover the concatenation of the original images from the concatenation of the corrupted ones. The main hypothesis here is that this long concatenation matrix will be well approximated by a low-rank matrix, since the difference in lighting and corruption is supposed to be sparse. We evaluated the different methods mostly by visual inspection of the results, but also by computing the mean squared error between the original and recovered images.
-
-\subsection{Clustering}
-
-For this task, we used the AT\&T dataset, and more specifically 400 112$\times$92 images aggregated in 40 equally sampled classes (each class corresponding to one individual). We then compute the low-rank approximation of the concatenation of the images, and used the resulting matrix as a feature matrix for clustering. We then evaluated the different methods by computing the labels produced by the KMeans algorithm trained on this feature matrix, and comparing them with the original labels of the dataset. We compared the different methods by computing the $ $ error between, as well as the Adjusted Rand Index (ARI) as well as the Normalized Mutual Information (NMI). These metrics can be easily computed given the confusion matrix and the raw labels:
-
-\[ ARI = 2 \frac{TP \times TN - FN \times FP}{(TP + FN)\times(FN + TN) + (TP + FP)\times(FP + FN)} \]
-
-\[ NMI = \frac{I(y_{\text{true}}, y_{\text{pred}})}{\sqrt{H(y_{\text{true}}) \times H(y_{\text{pred}})}} \]
-
-where $TP$ is the number of true positives, $TN$ is the number of true negatives, $FP$ is the number of false positives, $FN$ is the number of false negatives, $I(y_{\text{true}}, y_{\text{pred}})$ is the mutual information between $y_{\text{true}}$ and $y_{\text{pred}}$, and $H(y)$ is the entropy of $y$.
-
-\section{Results}
-
-
-
-
-\section{Limitations}
-
-
-
-
-\section{Conclusion}
-
+\subsection{Figures}
 
 
 
